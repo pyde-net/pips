@@ -28,7 +28,7 @@ The technical meat. Precise enough that a second implementer could build it from
 
 Code snippets where helpful. Reference the existing crate structure in `pyde/crates/`.
 
-For Standards Track PIPs, the activation slot MUST be at least 6,500,000 slots (≈ 30 days at 400ms slots) after the `Accepted` transition to give validators time to upgrade.
+For Standards Track PIPs, the activation slot MUST be at least 6,500,000 slots (≥ ~30 days at the wave-commit cadence) after the `Accepted` transition to give validators time to upgrade.
 
 ## Rationale
 

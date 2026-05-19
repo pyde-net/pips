@@ -58,7 +58,7 @@ The primary discussion venue for any PIP is the pull request for that PIP on thi
 
 ### Protocol activation
 
-`Standards Track` PIPs that affect consensus require a hard fork. The accepted PIP MUST specify an activation slot at least 6,500,000 slots (≈ 30 days at 400ms slots) after the `Accepted` transition. The main client ships an implementation behind the activation-slot gate and is released before the activation slot so validators have time to upgrade.
+`Standards Track` PIPs that affect consensus require a hard fork. The accepted PIP MUST specify an activation slot at least 6,500,000 slots (≥ ~30 days at the wave-commit cadence) after the `Accepted` transition. The main client ships an implementation behind the activation-slot gate and is released before the activation slot so validators have time to upgrade.
 
 Non-upgraded validators fork themselves off at the activation slot. Their stake remains but produces no rewards on the dead fork.
 
