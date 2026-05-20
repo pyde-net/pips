@@ -1,5 +1,5 @@
 ---
-pip: XXXX
+pip: 2
 title: Clustered state keys (address-prefix layout)
 author: zarah <zarah.zrh2@gmail.com> (@zarah-s)
 type: Standards Track
