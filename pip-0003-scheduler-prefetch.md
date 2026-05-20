@@ -11,22 +11,24 @@ requires: 2
 ## Abstract
 
 Add a *prefetch* step to the block executor: before each
-execution wave runs, group the wave's access lists by contract
-address and issue one RocksDB `MultiGet` per contract to pull
-all touched slots' SST blocks into the block cache. Then run
-the wave. Each `Sload` issued by a transaction in the wave
-hits the warm cache instead of going to disk.
+execution wave runs, collect every storage key the wave's
+transactions will touch (across all contracts and all txs in
+the wave), and issue *one* RocksDB `MultiGet` call for the
+whole list. Then run the wave. Each `Sload` issued by a
+transaction in the wave hits the warm cache instead of going
+to disk.
 
-PIP-2 (clustered keys) makes the per-contract group land
-together on disk. PIP-3 makes the scheduler *use* that
-locality — it converts "K disk seeks per tx" into "one
-prefetch per contract per wave" for cold workloads.
+PIP-2 (clustered keys) makes keys for the same contract land
+adjacent in RocksDB's sorted keyspace. RocksDB's `MultiGet`
+internally sorts the input list, batches reads per SST file,
+and parallelises I/O across files. So one wave-level
+`MultiGet` over a key list of size N produces one bloom-
+filter check per SST file plus one I/O per distinct block —
+not N separate I/Os.
 
-Together: cold-cache state reads drop by roughly the number of
-slots a wave touches per contract. Warm reads are unchanged.
-The prefetch is fire-and-forget at execution start; it adds
-microseconds in steady state and saves milliseconds on cold
-paths.
+Together: cold-cache state reads drop from "N disk seeks per
+wave" to "one I/O per distinct SST block per wave". Warm
+reads are unchanged.
 
 ## Motivation
 
@@ -58,9 +60,10 @@ Wave runs ─► Tx1 starts ─► Sload(slot a) [cold I/O]
 with this one:
 
 ```text
-Prefetch wave's access lists, grouped by contract:
-   contractA: MultiGet([a, b, d, e])  [1 cold I/O]
-   contractB: MultiGet([c])           [1 cold I/O]
+MultiGet([a, b, c, d, e])   [RocksDB sorts internally → keys for the
+                             same contract land adjacent → 1 I/O per
+                             distinct SST block; per-block I/Os run
+                             in parallel inside RocksDB]
 ─► Wave runs ─► Tx1 starts ─► Sload(slot a) [warm]
                           ─► Sload(slot b) [warm]
                           ─► Sload(slot c) [warm]
@@ -69,7 +72,7 @@ Prefetch wave's access lists, grouped by contract:
 ```
 
 For a token transfer block (the common case), this means
-~one cold I/O per block per token contract instead of 2N cold
+~one cold I/O per token-contract SST block instead of 2N cold
 I/Os for N transfers. The exact win depends on workload
 locality; the upper bound is "all reads in a wave become
 warm."
@@ -100,44 +103,38 @@ Step 2 is the new step.
 // engine/crates/state/src/prefetch.rs (new module)
 
 use crate::access::StateAccess;
-use crate::keys;
-use rocksdb::{DB, ReadOptions};
-use std::collections::HashMap;
 
 /// Prefetch every slot a wave's transactions will read or
-/// write, grouped by contract. Returns when RocksDB has
-/// pulled the targeted SST blocks into the block cache.
+/// write. Returns when RocksDB has pulled the targeted SST
+/// blocks into the block cache.
 pub fn prefetch_wave(
     state: &dyn StateAccess,
     access_lists: &[&AccessList],
 ) -> Result<(), PrefetchError> {
-    // 1. Group by contract.
-    let mut by_contract: HashMap<Address, Vec<H256>> =
-        HashMap::new();
+    // 1. Collect every key the wave touches.
+    let mut keys: Vec<H256> = Vec::new();
     for al in access_lists {
         for entry in al.entries() {
-            let bucket = by_contract
-                .entry(entry.address)
-                .or_default();
-            // Reads: prefetch what's needed.
-            bucket.extend_from_slice(&entry.reads);
-            // Writes: prefetch too — RocksDB write-path
-            // benefits from a warm read of the prior value.
-            bucket.extend_from_slice(&entry.writes);
+            keys.extend_from_slice(&entry.reads);
+            // Writes: prefetch too — the SSTORE cost model
+            // (Chapter 4.4 of the Otigen book) reads the
+            // prior value, so warm reads help writes too.
+            keys.extend_from_slice(&entry.writes);
         }
     }
 
-    // 2. Issue one MultiGet per contract, in parallel via
-    //    a thread pool.
-    rayon::scope(|s| {
-        for (addr, keys) in &by_contract {
-            s.spawn(move |_| {
-                let _ = state.multi_get_for_warm(addr, keys);
-            });
-        }
-    });
+    // 2. Dedupe. Two txs in the same wave never write the
+    //    same slot (the scheduler enforces this) but they
+    //    can read-share, and a key can appear in both reads
+    //    and writes of the same tx.
+    keys.sort_unstable();
+    keys.dedup();
 
-    Ok(())
+    // 3. One MultiGet for the whole wave.
+    //    RocksDB sorts internally, batches per SST file,
+    //    parallelises across files. That's the level the
+    //    parallelism wants to live at.
+    state.multi_get_for_warm(&keys)
 }
 ```
 
@@ -153,7 +150,6 @@ trait StateAccess {
     /// from disk).
     fn multi_get_for_warm(
         &self,
-        contract: &Address,
         keys: &[H256],
     ) -> Result<(), StateError>;
 }
@@ -161,17 +157,7 @@ trait StateAccess {
 
 The implementation in `JmtRocksStore` calls
 `rocksdb::DB::multi_get_cf` with the storage column family.
-RocksDB internally batches and parallelises the I/O.
-
-### Per-contract grouping rationale
-
-The unit is "contract", not "slot" or "tx", because PIP-2's
-layout clusters by contract. A 16-byte address prefix groups
-a contract's slots together; one I/O brings in the SST
-block(s) containing all of those slots. Going finer than
-"per contract" (per-slot prefetch) over-issues the API
-calls; going coarser (per-wave bulk-fetch) loses the
-parallelism across contracts.
+That's the entire body of the function.
 
 ### Synchronous vs fire-and-forget
 
@@ -271,21 +257,37 @@ adding it via the EventListener API is fragile and
 requires modifying the upstream dep. Scheduler-level is
 simpler and gives the application full control.
 
-### Why per-contract grouping
+### Why one wave-level MultiGet (not per-contract, not per-tx)
 
-Per-wave (one batch for all keys across all contracts in
-the wave) loses the SST-block-locality benefit because
-keys for different contracts live in different SST blocks.
-RocksDB's MultiGet would still issue distinct I/Os per
-block, but you'd lose the ability to parallelise across
-contracts.
+An earlier draft of this PIP grouped the wave's keys by
+contract address and issued one `MultiGet` per contract,
+fanned out across a thread pool. That design was rejected
+in review: it duplicates work RocksDB already does
+internally.
+
+RocksDB's `multi_get_cf`:
+
+- **Sorts the input keys** before reading. With PIP-2's
+  clustering, keys for the same contract are then adjacent
+  in the sorted batch.
+- **Checks each SST file's bloom filter once per file**, not
+  once per key. A wave touching 200 keys across 3 SST files
+  does 3 bloom checks, not 200.
+- **Parallelises I/O across SST files** internally. The
+  application doesn't need its own thread pool.
+- **Pins blocks across hits.** Two keys landing in the same
+  block trigger one read; both are served from it.
+
+So feeding the entire wave's key list to a single
+`MultiGet` call gives us all the locality and parallelism
+benefits with one syscall and no application-level thread
+management. Per-contract grouping would force N separate
+syscalls and an external thread pool to coordinate them —
+strictly more overhead.
 
 Per-slot (one prefetch per slot) doesn't batch at all;
-you'd issue N MultiGets where one would do.
-
-Per-contract is the natural grain: PIP-2 makes one
-contract's state cluster on disk; one MultiGet warms that
-cluster.
+you'd issue N `MultiGet`s where one would do. Same
+problem, worse.
 
 ### Why synchronous prefetch (v1)
 
