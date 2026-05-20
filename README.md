@@ -73,7 +73,7 @@ In practice:
 ## How Accepted PIPs reach validators
 
 1. A client team implements the PIP in the main `pyde` repository, merged before `Accepted` status.
-2. The accepted PIP specifies an **activation slot**. For Standards Track PIPs, the activation slot must be at least **6,500,000 slots** (≥ ~30 days at the wave-commit cadence) after the PIP enters `Accepted`. This gives validators time to upgrade binaries.
+2. The accepted PIP specifies an **activation slot**. For Standards Track PIPs, the activation slot must be at least **6,500,000 slots** (≥ ~30 days at the ~500ms median commit cadence) after the PIP enters `Accepted`. This gives validators time to upgrade binaries.
 3. A client release ships containing the implementation behind the activation-slot gate.
 4. Validators voluntarily upgrade.
 5. At the activation slot, upgraded nodes start enforcing the new rules. Non-upgraded nodes fork themselves off — their stake remains but produces no rewards on the dead fork.
