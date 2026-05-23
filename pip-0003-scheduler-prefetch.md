@@ -8,6 +8,8 @@ created: 2026-05-20
 requires: 2
 ---
 
+> **Note on `engine/...` paths.** This PIP was authored against the pre-pivot engine workspace, which has been retired and archived at [pyde-net/archive](https://github.com/pyde-net/archive). The post-pivot engine repo will be re-cut; canonical implementation locations are TBD until then. `engine/crates/...` paths below describe the pre-pivot layout and remain valid as design intent for the post-pivot codebase — the file structure is expected to carry over substantively unchanged.
+
 ## Abstract
 
 Add a *prefetch* step to the block executor: before each
@@ -236,14 +238,14 @@ of wall time getting there.
 
 ## Rationale
 
-### Why scheduler-level rather than PVM-level
+### Why scheduler-level rather than VM-level
 
-A PVM-level alternative would have the VM emit a "prefetch
+A VM-level alternative would have the WASM execution layer emit a "prefetch
 hint" instruction at the start of each function, listing
 slots it will touch. This was rejected:
 
 - The VM already has the access list at runtime via the
-  PVM's `allowed_storage_keys` check; emitting it again as
+  the execution layer's access-list check; emitting it again as
   a hint instruction would be redundant.
 - Per-function granularity over-issues prefetches across
   many small functions. Per-wave is the right grain.
@@ -345,7 +347,7 @@ malicious user pays per slot they declare. Combined with
 the block gas limit, this caps the per-block prefetch
 budget.
 
-Additionally, the PVM enforces the access list — any slot
+Additionally, the execution layer enforces the access list — any slot
 not declared cannot be read. So a transaction cannot
 *both* declare a huge prefetch AND actually use a small
 working set; it'd revert with `AccessListViolation`. The

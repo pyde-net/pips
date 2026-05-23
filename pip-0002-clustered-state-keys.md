@@ -7,6 +7,8 @@ status: Draft
 created: 2026-05-20
 ---
 
+> **Note on `engine/...` paths.** This PIP was authored against the pre-pivot engine workspace, which has been retired and archived at [pyde-net/archive](https://github.com/pyde-net/archive). The post-pivot engine repo will be re-cut; canonical implementation locations are TBD until then. `engine/crates/...` paths below describe the pre-pivot layout and remain valid as design intent for the post-pivot codebase — the file structure is expected to carry over substantively unchanged.
+
 ## Abstract
 
 Change Pyde's storage-key derivation so that every key for a given
@@ -70,7 +72,7 @@ supports first-class:
 
 The change has no effect on the JMT's safety properties, the
 parallel-execution model, sparse-map semantics, or the access-
-list enforcement at the PVM layer. It is a layout optimization
+list enforcement at the execution layer. It is a layout optimization
 on the _physical_ placement of keys in RocksDB.
 
 ## Specification
@@ -182,7 +184,7 @@ radix-16 path-compressed JMT collapses into a small number of
 high-up nodes. Tree depth is unchanged; the path-compressed
 top of the tree gets denser.
 
-### PVM impact
+### Execution layer impact
 
 `Sload` and `Sstore` opcodes already operate on 256-bit (32-
 byte) storage keys via `H256`. No opcode or instruction-format
