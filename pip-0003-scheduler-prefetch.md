@@ -3,12 +3,13 @@ pip: 3
 title: Scheduler-level state prefetch
 author: zarah <zarah.zrh2@gmail.com> (@zarah-s)
 type: Standards Track
-status: Draft
+status: Accepted
 created: 2026-05-20
+accepted: 2026-05-24
 requires: 2
 ---
 
-> **Note on `engine/...` paths.** This PIP was authored against the pre-pivot engine workspace, which has been retired and archived at [pyde-net/archive](https://github.com/pyde-net/archive). The post-pivot engine repo will be re-cut; canonical implementation locations are TBD until then. `engine/crates/...` paths below describe the pre-pivot layout and remain valid as design intent for the post-pivot codebase — the file structure is expected to carry over substantively unchanged.
+> **Post-pivot canonical locations.** This PIP was authored against the pre-pivot engine workspace (archived at [pyde-net/archive](https://github.com/pyde-net/archive)). The post-pivot engine has since been re-cut at [pyde-net/engine](https://github.com/pyde-net/engine) and the canonical implementation splits across two crates: the state-side `multi_get_for_warm` primitive lives at **`crates/state/src/prefetch.rs`** (landing as the state-side reference implementation PR); the tx-pipeline wire-up that calls `prefetch_wave` before wave dispatch lives in **`crates/tx/src/pipeline.rs`** and lands as part of the β.3 tx crate work. References to `engine/crates/state/src/...` and `engine/crates/tx/src/...` in the original draft map to these new module paths; the trait-level `multi_get_for_warm` method described under `StateAccess` lives initially as an inherent helper on `StateStore` (the `interfaces` crate is frozen at MC-0; the trait can grow when a later PR needs cross-backend abstraction).
 
 ## Abstract
 
@@ -365,23 +366,35 @@ version of the database).
 
 ## Reference implementation
 
-To be drafted as a single PR against `engine/`:
+Split across two PRs against `pyde-net/engine` to fit the
+post-pivot crate boundaries (`state` is β-owned and active
+now; `tx` is β.3, not yet bootstrapped):
 
-- New module `engine/crates/state/src/prefetch.rs`
-  containing `prefetch_wave` and the `multi_get_for_warm`
-  trait method on `StateAccess`.
-- Implementation of `multi_get_for_warm` in
-  `engine/crates/state/src/jmt_store.rs` using
-  `rocksdb::DB::multi_get_cf`.
-- Memory implementation in
-  `engine/crates/state/src/memory_jmt.rs` as a no-op
-  (in-memory state is already "warm").
-- Wire-up in `engine/crates/tx/src/pipeline.rs`: call
-  `prefetch_wave(state, &access_lists)` before
-  dispatching each wave.
-- Benchmark in `engine/crates/state/benches/` measuring
-  wall-clock cold-cache wave execution with vs without
-  prefetch.
+**State-side PR (current):**
+
+- New module `crates/state/src/prefetch.rs` containing
+  the `prefetch_slots` free function backed by
+  `rocksdb::DBWithThreadMode::multi_get_cf` against
+  `state_cf`. Handles dedup + sort + an internal budget
+  cap to bound block-cache pressure under adversarial
+  large access lists.
+- Lives initially as an inherent helper rather than a
+  trait method — the `interfaces` crate is frozen at
+  MC-0; a `StateView::prefetch_slots` addition can land
+  when β.4 (`wasm-exec`) needs cross-backend abstraction.
+- Benchmark at `crates/state/benches/prefetch.rs`
+  measuring wall-clock cold-cache wave reads under PIP-2
+  layout, comparing with vs without prefetch.
+
+**Tx-pipeline PR (deferred to β.3):**
+
+- Wire-up in `crates/tx/src/pipeline.rs`: collect the
+  wave's access lists, call the state-side prefetch
+  before dispatching each tx to a worker thread.
+- Memory-state no-op (the existing in-memory test
+  helpers — `pyde_engine_interfaces::mock::MockState` —
+  are already "warm"; the no-op fallback ensures the
+  pipeline runs identically against real and mock state).
 
 ### Bench plan
 
@@ -410,17 +423,15 @@ Three benchmarks, each comparing PIP-2-only vs PIP-2+PIP-3:
    Violation check still fires on real misuse.
    - Target: no regression; gas charged as expected.
 
-### Acceptance gate
+### Bench role under Accepted status
 
-The PIP is accepted if and only if:
+Same precedent as PIP-2 ([pyde-net/pips#1](https://github.com/pyde-net/pips/pull/1)): under Accepted status the bench is **validation**, not acceptance gating. The state-side reference implementation ships bench 1 (synthetic single-contract); benches 2 and 3 land alongside the tx-pipeline wire-up PR where the wave-execution path is reachable end-to-end. Targets unchanged:
 
-- Bench 1 shows ≥10x cold-read reduction.
-- Bench 2 shows ≥2x cold-block wall-clock improvement.
-- Bench 2 shows ≤5% regression on warm blocks.
-- Bench 3 shows no security regression.
+- Bench 1: ≥10× cold-read reduction with prefetch on.
+- Bench 2: ≥2× cold-block wall-clock improvement; ≤5% regression on warm blocks.
+- Bench 3: no security regression; gas pricing correctly caps the adversarial-large-access-list attack.
 
-If any of these fails, PIP-3 is withdrawn rather than
-accepted.
+If a bench fails to hit its target, PIP-3 may be **superseded** by a follow-up that revisits the design — it does not auto-revert. Pre-mainnet greenfield + clean primitive = hold the design and iterate.
 
 ## Open questions
 
