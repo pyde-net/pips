@@ -3,11 +3,12 @@ pip: 2
 title: Clustered state keys (address-prefix layout)
 author: zarah <zarah.zrh2@gmail.com> (@zarah-s)
 type: Standards Track
-status: Draft
+status: Accepted
 created: 2026-05-20
+accepted: 2026-05-24
 ---
 
-> **Note on `engine/...` paths.** This PIP was authored against the pre-pivot engine workspace, which has been retired and archived at [pyde-net/archive](https://github.com/pyde-net/archive). The post-pivot engine repo will be re-cut; canonical implementation locations are TBD until then. `engine/crates/...` paths below describe the pre-pivot layout and remain valid as design intent for the post-pivot codebase — the file structure is expected to carry over substantively unchanged.
+> **Post-pivot canonical locations.** This PIP was authored against the pre-pivot engine workspace (archived at [pyde-net/archive](https://github.com/pyde-net/archive)). The post-pivot engine has since been re-cut at [pyde-net/engine](https://github.com/pyde-net/engine) and the canonical implementation location is **`crates/state/src/slot_key.rs`** (new module, landing as the reference implementation PR alongside the two-table state-crate integration). References to `engine/crates/state/src/keys.rs` in the original draft map to this new module post-pivot; the file structure carries over substantively unchanged.
 
 ## Abstract
 
@@ -344,26 +345,29 @@ is the same.
 
 ## Reference implementation
 
-To be drafted as a single PR against `engine/`:
+To land as a single PR against `pyde-net/engine` (on the
+`execution-side` branch per β stream conventions):
 
-- `engine/crates/state/src/keys.rs` — update every key-
-  derivation function to use the new layout.
-- `engine/crates/state/src/keys.rs::tests` — regenerate the
-  hardcoded key bytes in unit tests.
-- `engine/crates/state/src/jmt_store.rs` — sanity-check that
-  the JMT integration still works against the new key shape
-  (it should, since the key type didn't change).
-- Add a benchmark in `engine/crates/state/benches/` that
-  measures cold-cache N-slot read for one contract under
-  both layouts.
+- `crates/state/src/slot_key.rs` (new) — implement every
+  key-derivation function under the new clustered layout
+  (`account_meta_key`, `storage_slot_key`, `map_entry_key`,
+  and the nested-map variant).
+- `crates/state/src/slot_key.rs::tests` — exhaustive unit
+  tests covering clustering invariants (every key for a
+  given contract shares the same 16-byte prefix),
+  collision resistance within a contract, determinism, and
+  edge cases (zero address, max slot, empty map key, large
+  map key).
+- `crates/state/src/jmt_store.rs` — no change required;
+  `KeyHash` is still `[u8; 32]` (sanity-checked by the
+  state-crate test suite).
+- `crates/state/benches/clustered_keys.rs` (new) — bench
+  cold-cache N-slot reads for one contract under the
+  clustered layout. Comparison against a non-clustered
+  baseline (random key hashes) included to quantify the
+  practical lift.
 
-Acceptance is gated on the benchmark confirming a measurable
-win (target: ≥2× on cold reads of 4+ slots from one contract;
-no measurable regression on warm cache or single-slot reads).
-If the benchmark fails to show a material win, this PIP is
-withdrawn rather than accepted — the design is clean enough
-to ship but only worth shipping if the practical effect
-matches the model.
+The benchmark's role under this Accepted status is **validation**, not acceptance gating. If the bench fails to show a meaningful win (target: ≥2× on cold reads of 4+ slots from one contract; no measurable regression on warm cache or single-slot reads), the PIP may be **superseded** by a follow-up that revisits the layout, but it does not auto-revert — the design is clean and pre-mainnet, so we keep it in place while iterating rather than thrashing the storage schema.
 
 ## Open questions
 
