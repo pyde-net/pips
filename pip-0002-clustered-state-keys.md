@@ -1,7 +1,7 @@
 ---
 pip: 2
 title: Clustered state keys (address-prefix layout)
-author: zarah <zarah.zrh2@gmail.com> (@zarah-s)
+author: zarah (@zarah-s)
 type: Standards Track
 status: Accepted
 created: 2026-05-20

@@ -1,7 +1,7 @@
 ---
 pip: 1
 title: PIP Purpose and Process
-author: zarah <zarah.zrh2@gmail.com> (@zarah-s)
+author: zarah (@zarah-s)
 type: Meta
 status: Accepted
 created: 2026-04-19

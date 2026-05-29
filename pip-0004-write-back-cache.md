@@ -1,7 +1,7 @@
 ---
 pip: 4
 title: Application-level write-back cache for state
-author: zarah <zarah.zrh2@gmail.com> (@zarah-s)
+author: zarah (@zarah-s)
 type: Standards Track
 status: Accepted
 created: 2026-05-21
