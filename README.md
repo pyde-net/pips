@@ -30,7 +30,7 @@ Draft  ──▶  Review  ──▶  Last Call (14 days)  ──▶  Accepted  �
 - **Draft**: initial PR. Author iterates on feedback.
 - **Review**: PR merged; community + core team actively discussing.
 - **Last Call**: 14-day final comment period. No substantive changes during this window.
-- **Accepted**: final. Reference implementation merged into the main `pyde` repository (possibly behind a feature flag) before this transition.
+- **Accepted**: final. Reference implementation merged into the appropriate implementation repository (typically [`pyde-net/engine`](https://github.com/pyde-net/engine); see "Required sections" above for the per-domain breakdown), possibly behind a feature flag, before this transition.
 - **Rejected / Withdrawn**: terminal states. Withdrawn = author pulled it. Rejected = community consensus against.
 
 ## How to propose
@@ -50,7 +50,7 @@ Draft  ──▶  Review  ──▶  Last Call (14 days)  ──▶  Accepted  �
 - **Rationale** — why this design over alternatives
 - **Backwards compatibility** — breaking changes + migration path
 - **Security considerations** — attack surface, mitigations
-- **Reference implementation** — link to code in the main `pyde` repo (can be TBD during Draft; must be merged before Accepted)
+- **Reference implementation** — link to code in the appropriate implementation repository (typically [`pyde-net/engine`](https://github.com/pyde-net/engine) for protocol / consensus / VM changes, [`pyde-net/otigen`](https://github.com/pyde-net/otigen) for toolchain-affecting changes, [`pyde-net/pyde-crypto`](https://github.com/pyde-net/pyde-crypto) for cryptographic primitives). Can be TBD during Draft; must be merged before Accepted
 
 ## Discussion venues
 
@@ -72,7 +72,7 @@ In practice:
 
 ## How Accepted PIPs reach validators
 
-1. A client team implements the PIP in the main `pyde` repository, merged before `Accepted` status.
+1. A client team implements the PIP in the appropriate implementation repository ([`pyde-net/engine`](https://github.com/pyde-net/engine) for the validator binary, [`pyde-net/otigen`](https://github.com/pyde-net/otigen) for the developer toolchain, [`pyde-net/pyde-crypto`](https://github.com/pyde-net/pyde-crypto) for cryptographic primitives), merged before `Accepted` status.
 2. The accepted PIP specifies an **activation slot**. For Standards Track PIPs, the activation slot must be at least **6,500,000 slots** (≥ ~30 days at the ~500ms median commit cadence) after the PIP enters `Accepted`. This gives validators time to upgrade binaries.
 3. A client release ships containing the implementation behind the activation-slot gate.
 4. Validators voluntarily upgrade.
