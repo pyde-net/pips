@@ -252,7 +252,7 @@ Validators upgrading to a PIP-4-enabled engine see immediately improved write th
 
 ## Reference Implementation
 
-Staged across five PRs against `pyde-net/engine` on `execution-side`, each independently reviewable + roadmap-tickable. The staging keeps each PR around the ~500-LoC focused-PR target the rest of β.1 follows:
+Staged across five PRs against `pyde-net/engine` on `execution-side`, each independently reviewable and trackable. The staging keeps each PR around the ~500-LoC focused-PR target the rest of β.1 follows:
 
 | | Branch | Scope |
 |---|---|---|
