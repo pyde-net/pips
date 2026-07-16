@@ -132,8 +132,9 @@ account. `"none"` strips the corresponding code from the artifact.
 | `MAX_ALLOWANCE_TTL_WAVES` | `63_072_000` | ≈ 1 year at 500 ms/wave; hard cap on allowance lifetime |
 | `MAX_BATCH` | `256` | max `owners` in `balance_of_batch` |
 | `MAX_CALL_DATA` | `4_096` | max bytes of `data` in `transfer_call` |
-| `ACK_TOKEN` | `Blake3("pts/on_token_received/1")[0..4]` | required return of a fungible receiver |
-| `ACK_NFT` | `Blake3("pts/on_nft_received/1")[0..4]` | required return of an NFT receiver |
+| `ACK_TOKEN` | `u32::from_le_bytes(Blake3("pts/on_token_received/1")[0..4])` | required return of a fungible receiver |
+| `ACK_NFT` | `u32::from_le_bytes(Blake3("pts/on_nft_received/1")[0..4])` | required return of an NFT receiver |
+| `ROLE_MINTER` / `ROLE_MANAGER` / `ROLE_FREEZER` / `ROLE_PAUSER` | `Blake3("minter") / …("manager") / …("freezer") / …("pauser")` | 32-byte role identifiers carried by `RoleTransfer` |
 
 ### 4. Conventions (normative)
 
@@ -193,7 +194,7 @@ if `to` is the zero address or the token's own address;
 NOT invoke any code on `to`.
 
 ```
-fn transfer_call(to: Address, amount: u128, data: Vec<u8>) -> [u8; 4]
+fn transfer_call(to: Address, amount: u128, data: Vec<u8>) -> u32
 ```
 Ordering is normative: (1) full balance settlement, (2) `Transfer`
 emission, (3) `cross_call` of `on_token_received(operator, from,
@@ -209,8 +210,9 @@ fn transfer_from(from: Address, to: Address, amount: u128)
 Spends a live allowance of `(from, caller())`: reverts
 `token:allowance_expired` if `current_wave > expiry_wave`,
 `token:insufficient_allowance` on shortfall; then behaves as
-`transfer(from → to)`. Decrements the allowance; emits `Transfer`
-with `by = caller()` in the data payload; MUST NOT emit `Approval`.
+`transfer(from → to)`. Decrements the allowance; emits `Transfer`;
+MUST NOT emit `Approval`. Operator attribution is derivable from the
+enclosing transaction/receipt, not the event.
 
 ```
 fn approve(spender: Address, amount: u128)
@@ -316,7 +318,7 @@ A contract that accepts `transfer_call` deposits exports:
 
 ```
 fn on_token_received(operator: Address, from: Address,
-                     amount: u128, data: Vec<u8>) -> [u8; 4]
+                     amount: u128, data: Vec<u8>) -> u32
 ```
 
 Requirements: (a) the function MUST authenticate `caller()` against
@@ -335,9 +337,9 @@ Signatures (topic0 = Blake3 of the canonical signature string):
 
 | Event | Signature | Indexed | Data (Borsh) |
 |---|---|---|---|
-| Transfer | `Transfer(address,address,uint128)` | from, to | `{amount: u128, by: Address}` |
+| Transfer | `Transfer(address,address,uint128)` | from, to | `{amount: u128}` |
 | Approval | `Approval(address,address,uint128,uint64)` | owner, spender | `{remaining: u128, expiry_wave: u64}` |
-| RoleTransfer | `RoleTransfer(string,address,address)` | role (hashed), new | `{previous: Address}` |
+| RoleTransfer | `RoleTransfer(bytes32,address,address)` | role, new | `{previous: Address}` — role is the 32-byte `ROLE_*` identifier |
 | Freeze | `Freeze(address,bool)` | account | `{frozen: bool}` |
 | Registration | `Registration(address,bool,uint128)` | account | `{registered: bool, bond: u128}` |
 
@@ -360,7 +362,7 @@ fn owner_of(id: u64) -> Address
 fn balance_of(owner: Address) -> u64
 fn token_uri(id: u64) -> String
 fn transfer_from(from: Address, to: Address, id: u64)
-fn transfer_call(to: Address, id: u64, data: Vec<u8>) -> [u8; 4]
+fn transfer_call(to: Address, id: u64, data: Vec<u8>) -> u32
 fn approve(spender: Address, id: u64)
 fn set_approval_for_all(operator: Address, approved: bool)
 fn is_approved_for_all(owner: Address, operator: Address) -> bool
@@ -370,7 +372,7 @@ fn burn(id: u64)
 
 `transfer_call` follows the identical settle-then-notify +
 acknowledgement rules with `on_nft_received(operator, from, id,
-data) -> [u8; 4]` returning `ACK_NFT`. Events: `Transfer(from, to,
+data) -> u32` returning `ACK_NFT`. Events: `Transfer(from, to,
 id)` with all three indexed; `Approval(owner, spender, id)`;
 `ApprovalForAll(owner, operator, approved)`. Royalties are
 out-of-scope (unenforceable by interface); no fused
@@ -429,6 +431,18 @@ reference implementation merges.
 - **decimals default 9**: parity with native quanta (1 PYDE = 10⁹)
   gives the ecosystem one arithmetic mental model and makes exact
   wrapped-PYDE parity trivial.
+- **`u32` acknowledgements, `bytes32` role ids, and a 3-field
+  `Transfer`**: verified against the toolchain as it exists — the
+  manifest type vocabulary has no 4-byte token (`bytes4` is
+  deliberately rejected), so the acknowledgement is a `u32` whose
+  little-endian bytes are the Blake3-derived tag (identical wire
+  bytes); indexed variable-width event fields have no chain-committed
+  hashing convention, so `RoleTransfer` carries a precomputed 32-byte
+  role identifier; and an event's signature must list every declared
+  field, so `Transfer` keeps exactly three fields to preserve
+  byte-identical `topic0` with pre-PTS deployments — operator
+  attribution lives in receipts, and richer transfer telemetry is
+  additive `pts-f/2` territory (the reserved fourth topic).
 
 ## Backwards compatibility
 
