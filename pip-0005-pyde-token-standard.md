@@ -281,7 +281,8 @@ Typed-storage fields (slots host-derived per the HOST_FN_ABI):
 | `token_name`, `token_symbol`, `token_decimals` | string / string / u8 | init only |
 | `total_supply`, `max_supply` | u128 | mint/burn only |
 | `balances` | map1 address → u128 | transfer paths |
-| `allowances` | map2 (owner, spender) → Borsh `{amount: u128, expiry_wave: u64}` | approval family, transfer_from |
+| `allowance_amounts` | map2 (owner, spender) → u128 | approval family, transfer_from |
+| `allowance_expiries` | map2 (owner, spender) → u64 | approval family |
 | `minter`, `manager`, `freezer` | address | role ops |
 | `frozen` | map1 address → bool | freeze ext only (absent otherwise) |
 | `registered` | map1 address → u128 (bond) | registration ext only |
