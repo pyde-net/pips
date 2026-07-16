@@ -3,9 +3,8 @@ pip: 5
 title: PTS — the Pyde Token Standard (pts-f/1, pts-n/1)
 author: zarah (@zarah-s)
 type: Standards Track
-status: Accepted
+status: Draft
 created: 2026-07-16
-accepted: 2026-07-16
 ---
 
 ## Abstract
@@ -393,9 +392,9 @@ conformant generator version.
 ### 14. Activation
 
 No consensus change, no fork, no engine modification. Activation is
-a toolchain release: otigen ships generation + verification and the
-conformance vectors freeze. Until that release, conformance claims
-against `pts-f/1` / `pts-n/1` are premature.
+a toolchain release: otigen ships generation + verification, the
+conformance vectors freeze, and this PIP moves to Accepted when the
+reference implementation merges.
 
 ## Rationale
 
@@ -476,14 +475,13 @@ unaffected). The examples rename (`erc20-token` → `fungible-token`,
 
 ## Reference implementation
 
-In progress in [`pyde-net/otigen`](https://github.com/pyde-net/otigen),
-staged as: (1) reference examples `fungible-token` and `nft-token`
-implementing the surfaces on the current toolchain, with the AMM and
-marketplace examples as reference receivers; (2) `type = "token"`
-generation from one canonical implementation plus
-`otigen verify --standard`; (3) the conformance vector suite and
-malicious-receiver battery. Stage (3) freezing is the activation gate
-(§14).
+TBD during Draft. Planned in
+[`pyde-net/otigen`](https://github.com/pyde-net/otigen): (1)
+reference examples `fungible-token` and `nft-token` implementing the
+surfaces on the current toolchain, with the AMM and marketplace
+examples as reference receivers; (2) `type = "token"` generation from
+one canonical implementation plus `otigen verify --standard`; (3) the
+conformance vector suite and malicious-receiver battery.
 
 ## Copyright
 
