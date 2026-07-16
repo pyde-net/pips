@@ -270,7 +270,9 @@ address renounces provably.
 `token:not_pauser`, `token:cap_exceeded`, `token:not_burnable`,
 `token:frozen`, `token:paused`, `token:not_registered`,
 `token:bad_receiver`, `token:batch_too_large`,
-`token:data_too_large`. Conformance vectors pin the exact bytes.
+`token:data_too_large`; pts-n/1 additionally: `token:nonexistent`,
+`token:not_owner`, `token:not_authorized`, `token:invalid_operator`.
+Conformance vectors pin the exact bytes.
 
 ### 8. Storage schema (pts-f/1)
 
