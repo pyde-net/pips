@@ -3,8 +3,9 @@ pip: 5
 title: PTS — the Pyde Token Standard (pts-f/1, pts-n/1)
 author: zarah (@zarah-s)
 type: Standards Track
-status: Draft
+status: Accepted
 created: 2026-07-16
+accepted: 2026-07-17
 ---
 
 ## Abstract
@@ -395,10 +396,16 @@ conformant generator version.
 
 ### 14. Activation
 
-No consensus change, no fork, no engine modification. Activation is
-a toolchain release: otigen ships generation + verification, the
-conformance vectors freeze, and this PIP moves to Accepted when the
-reference implementation merges.
+No consensus change, no fork, no engine modification. Activation is a
+toolchain release: otigen ships generation + verification and the
+conformance vectors freeze. For `pts-f/1` this is **done** — the
+reference implementation, config-only `type = "token"` generation,
+`otigen verify` (auto-detected conformance + malicious-receiver
+battery), and the frozen vector suite all shipped, so `pts-f/1` is
+active. `pts-n/1` is specified and has a merged reference
+implementation; its config-only generation and verifier are the
+remaining v1.1 toolchain work, after which `pts-n/1` activates on the
+same terms.
 
 ## Rationale
 
@@ -491,13 +498,25 @@ unaffected). The reference examples ship as `fungible-token` and
 
 ## Reference implementation
 
-TBD during Draft. Planned in
-[`pyde-net/otigen`](https://github.com/pyde-net/otigen): (1)
-reference examples `fungible-token` and `nft-token` implementing the
-surfaces on the current toolchain, with the AMM and marketplace
-examples as reference receivers; (2) `type = "token"` generation from
-one canonical implementation plus `otigen verify --standard`; (3) the
-conformance vector suite and malicious-receiver battery.
+Shipped in [`pyde-net/otigen`](https://github.com/pyde-net/otigen):
+
+1. Reference examples `fungible-token` (pts-f/1) and `nft-token`
+   (pts-n/1) implementing the surfaces on the current toolchain, with
+   the AMM and marketplace examples as reference receivers and
+   `token-vault` as the canonical `on_token_received` companion.
+2. Config-only `type = "token"` generation from one canonical
+   implementation, and `otigen verify` — which auto-detects the
+   standard from a contract's `standard()` view and checks conformance
+   (ABI-shape match against the generated surface + byte-level vector
+   replay), with `otigen deploy --verify` chaining the two.
+3. The frozen `pts-f/1` conformance vector suite (canonical calldata →
+   canonical state writes, events, and reverts) and the
+   malicious-receiver battery, both run in CI beside the reference so
+   the freeze cannot drift.
+
+For `pts-f/1` all three are complete. For `pts-n/1`, (1) is complete
+(the merged reference) and (2)–(3) — config-only generation, the
+verifier, and the vector freeze — are the v1.1 toolchain work.
 
 ## Copyright
 
