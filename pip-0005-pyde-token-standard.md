@@ -31,14 +31,13 @@ consensus change is required: PTS tokens deploy as ordinary
 
 ## Motivation
 
-Pyde currently ships token examples named after another chain's
-proposal registry (ERC-20/ERC-721 shapes). Beyond the naming, the
-inherited model carries structural, measured costs, none of which are
-bugs in individual tokens:
+The token model most chains inherited from Ethereum carries
+structural, measured costs, none of which are bugs in individual
+tokens:
 
-- **Standing approvals**: ~$417–493M stolen via token approvals since
-  2020 (BadgerDAO ~$120M alone); roughly 60% of live approvals on
-  EVM chains are unlimited.
+- **Standing approvals**: ~$494M stolen via token approvals since
+  2020 (BadgerDAO ~$120M alone); unlimited, non-expiring approvals
+  remain the default grant.
 - **Off-chain approval signatures** (`permit`, Permit2): 56.7% of
   2024's token-phishing losses; single thefts up to $6.5M from one
   invisible signature.
@@ -50,7 +49,7 @@ bugs in individual tokens:
 - **Under-specification**: inconsistent `transfer` returns forced a
   permanent wrapper-library tax; optional metadata forced the
   off-chain token-list detour; unspecified vault rounding (ERC-4626)
-  shipped a recurring exploit class ($30M+).
+  shipped a recurring first-depositor exploit class.
 
 Every ledger designed after Ethereum converged on one audited
 implementation instead of per-token code (Solana's token program,
@@ -451,15 +450,15 @@ reference implementation merges.
 
 No deployed-chain compatibility surface changes: PTS artifacts are
 ordinary contracts. The `Transfer` event signature is byte-identical
-to the existing example token, so subscriptions and explorer decoding
-survive. Migration from the current `erc20-token` example: mutating
-functions drop `-> bool` (revert-only semantics); revert strings move
-to the canonical `token:*` codes; `approve(spender, amount)` remains
-callable with bounded-TTL semantics; the `allowances` field name and
-key shape are unchanged (the value widens to the Borsh
+to a conventional fungible-transfer event, so subscriptions and
+explorer decoding survive. For anyone porting an ERC-20-shaped token:
+mutating functions drop `-> bool` (revert-only semantics); revert
+strings move to the canonical `token:*` codes; `approve(spender,
+amount)` remains callable with bounded-TTL semantics; the `allowances`
+field name and key shape are unchanged (the value widens to the Borsh
 `{amount, expiry_wave}` pair, so slot-resolution tooling is
-unaffected). The examples rename (`erc20-token` → `fungible-token`,
-`erc721-token` → `nft-token`) with no wire impact.
+unaffected). The reference examples ship as `fungible-token` and
+`nft-token`, with no wire impact.
 
 ## Security considerations
 
