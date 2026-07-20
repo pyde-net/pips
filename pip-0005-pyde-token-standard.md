@@ -1,6 +1,6 @@
 ---
 pip: 5
-title: PTS — the Pyde Token Standard (pts-f/1, pts-n/1)
+title: "PTS: the Pyde Token Standard (pts-f/1, pts-n/1)"
 author: zarah (@zarah-s)
 type: Standards Track
 status: Accepted
@@ -15,8 +15,8 @@ non-fungible (`pts-n/1`) tokens as **manifest types**: a token is not
 code an author writes but configuration (`type = "token"` +
 `standard = "..."` in `otigen.toml`) that the otigen toolchain
 compiles from one audited canonical implementation. Token manifests
-are config-only — declaring functions, state, events, or shipping
-source is a build error — so every deployed token is verifiable by
+are config-only: declaring functions, state, events, or shipping
+source is a build error. Every deployed token is then verifiable by
 rebuilding its manifest and comparing bytes, and misimplementation is
 unrepresentable. The generated surface eliminates the documented
 failure classes of inherited token models: standing-approval drains
@@ -55,9 +55,9 @@ tokens:
 Every ledger designed after Ethereum converged on one audited
 implementation instead of per-token code (Solana's token program,
 Cosmos `x/bank`, Aptos Fungible Asset, Polkadot `pallet-assets`);
-both contract-level standards that competed against a native module
-(CW20, PSP22) lost. Pyde can obtain the same property **without
-engine changes** because the platform already carries the ABI inside
+the contract-level alternatives that competed against a native module
+(CW20, PSP22) never took hold. Pyde can obtain the same property
+**without engine changes** because the platform already carries the ABI inside
 each artifact (`pyde.abi` custom section), derives storage slots from
 a declared schema, and drives four language toolchains from one
 manifest. The standard therefore lives at the toolchain layer, where
@@ -77,7 +77,7 @@ it can be generated, validated, and mechanically conformance-checked.
 | `"token"`    | missing / unknown       | build error listing known standards   |
 
 Prose names are PTS-F / PTS-N; wire identifiers are lowercase
-versioned strings. `standard` is a single scalar — a fused
+versioned strings. `standard` is a single scalar, so a fused
 fungible/non-fungible artifact is unrepresentable. On-chain, tokens
 deploy as `ContractType::Contract` (tag `0x00`); no new
 `ContractType` variant is introduced.
@@ -92,8 +92,8 @@ type     = "token"
 standard = "pts-f/1"
 
 [token]
-name           = "<string>"     # 1–64 bytes UTF-8; control characters rejected
-symbol         = "<string>"     # 1–12 chars; [A-Z0-9] recommended
+name           = "<string>"     # 1 to 64 bytes UTF-8; control characters rejected
+symbol         = "<string>"     # 1 to 12 chars; [A-Z0-9] recommended
 decimals       = 9              # u8, ≤ 18; OMITTED → 9 (native parity)
 initial_supply = "<u128>"       # smallest units; minted at init
 initial_holder = "deployer"     # address | "deployer" (default)
@@ -153,7 +153,7 @@ account. `"none"` strips the corresponding code from the artifact.
    identical to a plain submission.
 7. Generated artifacts carry correct per-function access lists.
 
-### 5. Fungible surface (pts-f/1) — views
+### 5. Fungible surface (pts-f/1): views
 
 All views carry the `VIEW` attribute.
 
@@ -180,9 +180,9 @@ fn is_registered(owner: Address) -> bool    // registration extension only
 
 `extension_flags` bit assignments: bit 0 freeze, bit 1 pause, bit 2
 registration-required, bit 3 metadata_uri, bit 4 transfer_call, bit 5
-burnable. Bits 6–31 reserved.
+burnable. Bits 6 to 31 reserved.
 
-### 6. Fungible surface (pts-f/1) — mutations
+### 6. Fungible surface (pts-f/1): mutations
 
 ```
 fn transfer(to: Address, amount: u128)
@@ -301,18 +301,18 @@ no code, no storage reads, and no ABI entries. Enabled extensions are
 enumerable from the artifact (`extension_flags`, plus the ABI shape).
 Capabilities can never be added after deploy.
 
-- **freeze** — per-account; `transfer`/`transfer_call`/`transfer_from`
+- **freeze**: per-account; `transfer`/`transfer_call`/`transfer_from`
   read `frozen[from]` and `frozen[to]` and revert `token:frozen`.
-- **pause** — global brake; mutating token operations revert
+- **pause**: global brake; mutating token operations revert
   `token:paused` while set; distinct `pauser` role.
-- **registration = "required"** — transfers to unregistered accounts
+- **registration = "required"**: transfers to unregistered accounts
   revert `token:not_registered`. `register()` is `PAYABLE`, escrows
-  an exact bond (excess reverts before any state write — and because
+  an exact bond (excess reverts before any state write, and because
   the function is otherwise idempotent and validated up-front, no
   execution path both accepts value and reverts), records it in
   `registered[caller]`; `deregister()` pays the bond back via the
   native transfer host fn and zeroes the slot.
-- **metadata_uri** — a mutable string custodied by `manager`;
+- **metadata_uri**: a mutable string custodied by `manager`;
   renouncing `manager` freezes it permanently.
 
 ### 10. Receiver protocol
@@ -325,13 +325,13 @@ fn on_token_received(operator: Address, from: Address,
 ```
 
 Requirements: (a) the function MUST authenticate `caller()` against
-an author-maintained set of accepted token contracts before acting —
-the entry is publicly callable and unauthenticated calls MUST NOT be
-treated as deposits; (b) it MUST return `ACK_TOKEN` to accept; any
+an author-maintained set of accepted token contracts before acting,
+since the entry is publicly callable and unauthenticated calls MUST
+NOT be treated as deposits; (b) it MUST return `ACK_TOKEN` to accept; any
 other return or a revert rejects the transfer; (c) it MUST NOT carry
 the `REENTRANT` attribute. Toolchain support (a manifest `[receiver]`
 declaration generating the authenticated wrapper) is a Reference
-Implementation deliverable; hand-written receivers meeting (a)–(c)
+Implementation deliverable; hand-written receivers meeting (a) to (c)
 are conformant.
 
 ### 11. Events
@@ -342,7 +342,7 @@ Signatures (topic0 = Blake3 of the canonical signature string):
 |---|---|---|---|
 | Transfer | `Transfer(address,address,uint128)` | from, to | `{amount: u128}` |
 | Approval | `Approval(address,address,uint128,uint64)` | owner, spender | `{remaining: u128, expiry_wave: u64}` |
-| RoleTransfer | `RoleTransfer(bytes32,address,address)` | role, new | `{previous: Address}` — role is the 32-byte `ROLE_*` identifier |
+| RoleTransfer | `RoleTransfer(bytes32,address,address)` | role, new | `{previous: Address}`; role is the 32-byte `ROLE_*` identifier |
 | Freeze | `Freeze(address,bool)` | account | `{frozen: bool}` |
 | Registration | `Registration(address,bool,uint128)` | account | `{registered: bool, bond: u128}` |
 
@@ -385,8 +385,8 @@ fungible/non-fungible variant exists or will.
 
 An artifact conforms to `pts-f/1` iff (a) its `pyde.abi` section
 contains exactly the generated surface for its declared extension set
-— functions, attribute bits, parameter types, returns, events, and
-state schema — and (b) it passes the byte-level conformance vectors
+(functions, attribute bits, parameter types, returns, events, and
+state schema), and (b) it passes the byte-level conformance vectors
 published with this PIP (canonical calldata → canonical state writes,
 events, and reverts), including the malicious-receiver battery.
 `otigen verify --standard pts-f <address|bundle>` performs both
@@ -398,7 +398,7 @@ conformant generator version.
 
 No consensus change, no fork, no engine modification. Activation is a
 toolchain release: otigen ships generation + verification and the
-conformance vectors freeze. For `pts-f/1` this is **done** — the
+conformance vectors freeze. For `pts-f/1` this is **done**: the
 reference implementation, config-only `type = "token"` generation,
 `otigen verify` (auto-detected conformance + malicious-receiver
 battery), and the frozen vector suite all shipped, so `pts-f/1` is
@@ -441,15 +441,15 @@ same terms.
   gives the ecosystem one arithmetic mental model and makes exact
   wrapped-PYDE parity trivial.
 - **`u32` acknowledgements, `bytes32` role ids, and a 3-field
-  `Transfer`**: verified against the toolchain as it exists — the
-  manifest type vocabulary has no 4-byte token (`bytes4` is
+  `Transfer`**: each is verified against the toolchain as it exists.
+  The manifest type vocabulary has no 4-byte token (`bytes4` is
   deliberately rejected), so the acknowledgement is a `u32` whose
   little-endian bytes are the Blake3-derived tag (identical wire
   bytes); indexed variable-width event fields have no chain-committed
   hashing convention, so `RoleTransfer` carries a precomputed 32-byte
   role identifier; and an event's signature must list every declared
   field, so `Transfer` keeps exactly three fields to preserve
-  byte-identical `topic0` with pre-PTS deployments — operator
+  byte-identical `topic0` with pre-PTS deployments. Operator
   attribution lives in receipts, and richer transfer telemetry is
   additive `pts-f/2` territory (the reserved fourth topic).
 
@@ -470,7 +470,7 @@ unaffected). The reference examples ship as `fungible-token` and
 ## Security considerations
 
 - **Codegen monoculture**: one generated implementation concentrates
-  blast radius — a generator bug ships to every standard token and
+  blast radius: a generator bug ships to every standard token and
   deployed artifacts are immutable. Countermeasures are normative
   deliverables: an independent audit of the generator, byte-level
   conformance vectors frozen before Accepted, and the
@@ -482,7 +482,7 @@ unaffected). The reference examples ship as `fungible-token` and
   designs. The toolchain wrapper makes the check unwritable rather
   than merely documented.
 - **Griefing via `transfer_call`**: a malicious receiver can revert
-  (aborting atomically — the consent feature) or burn reserved gas
+  (aborting atomically, which is the consent feature) or burn reserved gas
   (bounded by the caller's reservation and priced under no-refund
   economics; `MAX_CALL_DATA` bounds payload-driven amplification).
 - **Value forfeiture**: with `register()` specified revert-free and
@@ -505,7 +505,7 @@ Shipped in [`pyde-net/otigen`](https://github.com/pyde-net/otigen):
    the AMM and marketplace examples as reference receivers and
    `token-vault` as the canonical `on_token_received` companion.
 2. Config-only `type = "token"` generation from one canonical
-   implementation, and `otigen verify` — which auto-detects the
+   implementation, and `otigen verify`, which auto-detects the
    standard from a contract's `standard()` view and checks conformance
    (ABI-shape match against the generated surface + byte-level vector
    replay), with `otigen deploy --verify` chaining the two.
@@ -515,8 +515,8 @@ Shipped in [`pyde-net/otigen`](https://github.com/pyde-net/otigen):
    the freeze cannot drift.
 
 For `pts-f/1` all three are complete. For `pts-n/1`, (1) is complete
-(the merged reference) and (2)–(3) — config-only generation, the
-verifier, and the vector freeze — are the v1.1 toolchain work.
+(the merged reference), while config-only generation, the verifier,
+and the vector freeze are the v1.1 toolchain work.
 
 ## Copyright
 
